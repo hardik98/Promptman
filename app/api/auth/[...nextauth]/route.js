@@ -1,8 +1,8 @@
-import NextAuth from "next-auth/next";
+import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
-import { connectToDB } from "@utils/database";
 import User from "@models/user";
+import { connectToDB } from "@utils/database";
 
 const handler = NextAuth({
   providers: [
@@ -13,46 +13,32 @@ const handler = NextAuth({
   ],
   callbacks: {
     async session({ session }) {
-      try {
-        await connectToDB();
+      // store the user id from MongoDB to session
+      const sessionUser = await User.findOne({ email: session.user.email });
+      session.user.id = sessionUser._id.toString();
 
-        // Lookup user in the database based on email
-        const sessionUser = await User.findOne({
-          email: session.user.email,
-        });
-
-        if (sessionUser) {
-          session.user.id = sessionUser._id.toString();
-        }
-
-        return session;
-      } catch (error) {
-        console.error("Error retrieving session user:", error);
-        return session;
-      }
+      return session;
     },
-    async signIn({ profile }) {
+    async signIn({ account, profile, user, credentials }) {
       try {
         await connectToDB();
 
-        // Check if user already exists in the database
-        const userExist = await User.findOne({
-          email: profile.email,
-        });
+        // check if user already exists
+        const userExists = await User.findOne({ email: profile.email });
 
-        // If user does not exist, create a new user
-        if (!userExist) {
+        // if not, create a new document and save user in MongoDB
+        if (!userExists) {
           await User.create({
             email: profile.email,
-            username: profile.name.replace(" ", ""),
+            username: profile.name.replace(" ", "").toLowerCase(),
             image: profile.picture,
           });
         }
 
-        return true; // Sign in successful
+        return true;
       } catch (error) {
-        console.error("Error during sign in:", error);
-        return false; // Sign in failed
+        console.log("Error checking if user exists: ", error.message);
+        return false;
       }
     },
   },

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Profile from "@components/Profile";
-import { resolve } from "styled-jsx/css";
 
 const MyProfile = () => {
   const router = useRouter();
